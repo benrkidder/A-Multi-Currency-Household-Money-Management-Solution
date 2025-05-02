@@ -1,20 +1,26 @@
 // screens/GraphScreen.tsx
 
 import { supabase } from '@/utils/supabase';
-import React from 'react';
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Text, View, StyleSheet, Dimensions, ScrollView } from 'react-native';
-import {
-  LineChart,
-  PieChart,
-} from 'react-native-chart-kit';
+import { LineChart, PieChart } from 'react-native-chart-kit';
 import { getData, getstoreddata, isUpdated } from '@/utils/data';
+import { Dropdown, DropdownButton } from 'react-bootstrap';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import currencyHistoricals from '../../../assets/data/currenciesHistorical.json';
 
 // Get screen width for responsive chart sizing
 const screenWidth = Dimensions.get('window').width;
+const currencyList = [
+  ['AUD', '$'],
+  ['CAD', '$'],
+  ['CNY', '\u{00A5}'],
+  ['EUR', '\u{20AC}'],
+  ['JPY', '\u{00A5}'],
+  ['KRW', '\u{20A9}']
+];
 
-// Chart Configuration (Styling)
-const chartConfig = {
+/*st chartConfig = {
   backgroundColor: '#e26a00', // Background color for the chart area itself (gradient start)
   backgroundGradientFrom: '#fb8c00', // Gradient start color
   backgroundGradientTo: '#ffa726', // Gradient end color
@@ -30,6 +36,7 @@ const chartConfig = {
     stroke: '#ffa726', // Dot border color
   },
 };
+
 // Sample Data
 const lineChartData = {
   labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
@@ -49,6 +56,7 @@ const lineChartData = {
   ],
   legend: ['Rainy Days'],
 };
+*/
 
 const colors = ["#34abeb", "#6c5b8c", "#a17c7a", "#94627f"]
 
@@ -57,6 +65,85 @@ let pieChartData = [];
 export default function GraphScreen() {
   const [user, setUser] = useState<any | null>(null)
   const [userData, setUserData] = useState<any | null>(null);
+  const [currency, setCurrency] = useState('AUD');
+  const [prefix, setPrefix] = useState('$');
+  const [lineChartData, setLineChartData] = useState({
+    labels: ['180d', '150d', '120d', '90d', '60d', '30d', 'Today'],
+    datasets: [
+      {
+        data: [
+          Number(currencyHistoricals.widget[0].data[179][1]),
+          Number(currencyHistoricals.widget[0].data[149][1]),
+          Number(currencyHistoricals.widget[0].data[119][1]),
+          Number(currencyHistoricals.widget[0].data[89][1]),
+          Number(currencyHistoricals.widget[0].data[59][1]),
+          Number(currencyHistoricals.widget[0].data[29][1]),
+          Number(currencyHistoricals.widget[0].data[0][1]),
+        ],
+        color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`, // optional line color override
+        strokeWidth: 2, // optional line width override
+      },
+    ],
+    legend: ['USD to AUD'],
+  });
+
+  // Chart Configuration (Styling)
+  const [chartConfig, setChartConfig] = useState({
+    backgroundColor: '#e26a00', // Background color for the chart area itself (gradient start)
+    backgroundGradientFrom: '#fb8c00', // Gradient start color
+    backgroundGradientTo: '#ffa726', // Gradient end color
+    decimalPlaces: 2, // optional, defaults to 2dp for labels
+    color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, // Line/bar/text color
+    labelColor: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`, // Axis label color
+    style: {
+      borderRadius: 16,
+    },
+    propsForDots: { // Style for the dots on the line chart
+      r: '6', // Radius
+      strokeWidth: '2',
+      stroke: '#ffa726', // Dot border color
+    },
+  });
+
+  // Handles the currency selection from dropdown button by user
+  const HandleSelect = (eventKey: any) => {
+    const newCurrency = currencyList[eventKey][0];
+    setCurrency(newCurrency);
+    UpdatePrefix(eventKey);
+  }
+
+  // Updates prefix based on currency
+  const UpdatePrefix = (eventKey: any) => {
+    const newPrefix = currencyList[eventKey][1];
+    setPrefix(newPrefix);
+    UpdateChartData(eventKey);
+  }
+
+  // Updates the chart data to the current selected currency
+  // TODO: Have dynamic day interval based on today
+  const UpdateChartData = (eventKey: any) => {
+    const newCurrency = currencyList[eventKey][0];
+    const newConfig = [
+      Number(currencyHistoricals.widget[eventKey].data[179][1]),
+      Number(currencyHistoricals.widget[eventKey].data[149][1]),
+      Number(currencyHistoricals.widget[eventKey].data[119][1]),
+      Number(currencyHistoricals.widget[eventKey].data[89][1]),
+      Number(currencyHistoricals.widget[eventKey].data[59][1]),
+      Number(currencyHistoricals.widget[eventKey].data[29][1]),
+      // TODO: Today update with 'today's' current value from https://api.coinbase.com/v2/exchange-rates
+      Number(currencyHistoricals.widget[eventKey].data[0][1]),
+    ];
+
+    setLineChartData(prev => ({
+      ...prev,
+      datasets: [{
+        data: newConfig,
+        color: (opacity = 1) => `rgba(134, 65, 244, ${opacity})`,
+        strokeWidth: 2,
+      }],
+      legend: ['USD to ' + newCurrency]
+    }));
+  }
 
   useEffect(() => {
     if (user === null)
@@ -99,20 +186,30 @@ export default function GraphScreen() {
   }
   if(other > 0)
     pieChartData.push({ name: "Other", population: other, color: "black", legendFontColor: "#7F7F7F", legendFontSize: 15 })
+  
   return (
     <ScrollView style={styles.container}>
-      <Text style={styles.title}>Chart Examples</Text>
-      <Text style={styles.chartTitle}>Line Chart</Text>
+      <Text style={styles.title}>Currency Exchange</Text>
+      <Text style={styles.chartTitle}>Exchange Rate</Text>
+      <DropdownButton id="dropdown-item-button" title={currency} onSelect={HandleSelect}>
+        <Dropdown.ItemText>Select Currency for Rate from USD</Dropdown.ItemText>
+        <Dropdown.Divider />
+        <Dropdown.Item eventKey="0">Australian-AUD</Dropdown.Item>
+        <Dropdown.Item eventKey="1">Canada-CAD</Dropdown.Item>
+        <Dropdown.Item eventKey="2">China-CNY</Dropdown.Item>
+        <Dropdown.Item eventKey="3">Euro-EUR</Dropdown.Item>
+        <Dropdown.Item eventKey="4">Japan-JPY</Dropdown.Item>
+        <Dropdown.Item eventKey="5">South Korea-KRW</Dropdown.Item>
+      </DropdownButton>
       <LineChart
         data={lineChartData}
-        width={screenWidth - 32}
+        width={screenWidth - 32} // from react-native (minus padding)
         height={220}
-        yAxisLabel="$"
-        yAxisSuffix="k"
-        yAxisInterval={1}
+        yAxisLabel={prefix} // Uses current currency symbol
         chartConfig={chartConfig}
-        bezier
         style={styles.chartStyle}
+        yLabelsOffset={10}
+        segments={6}
       />
       <Text style={styles.chartTitle}>Pie Chart</Text>
       <PieChart

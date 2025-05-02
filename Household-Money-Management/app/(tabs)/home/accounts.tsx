@@ -10,7 +10,7 @@ import {
   Text,
   TouchableOpacity, // More customizable than Button
 } from 'react-native'
-import { supabase } from '../utils/supabase'
+import { supabase } from '../../../utils/supabase'
 
 export default function Auth() {
   const [email, setEmail] = useState('')
